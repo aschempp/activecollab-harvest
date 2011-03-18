@@ -42,6 +42,14 @@
 	    
 	    {if $can_manage && is_foreachable($tasks)}
 	    <div id="mass_edit">
+	    {if $is_admin}
+	      <select name="user" class="auto">
+	        <option value="0">{lang}Detect Harvest user{/lang}</option>
+            {foreach from=$users item=name key=id}
+            <option value="{$id}">{lang}Submit to{/lang} {$name}</option>
+            {/foreach}
+	      </select>
+	    {/if}
 	      <select name="task" class="auto">
 	        <option value="">{lang}Select project/task ...{/lang}</option>
 	        {foreach from=$tasks item=group key=name}
