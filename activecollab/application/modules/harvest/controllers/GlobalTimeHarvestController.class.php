@@ -1,12 +1,7 @@
 <?php
 
-// Extend company profile
-use_controller('timetracking', TIMETRACKING_MODULE);
 
-// include ProjectConfigOptions model
-require_once SYSTEM_MODULE_PATH . '/models/ProjectConfigOptions.class.php';
-
-class HarvestController extends TimetrackingController
+class GlobalTimeHarvestController extends ApplicationController
 {
 	
 	/**
@@ -14,8 +9,57 @@ class HarvestController extends TimetrackingController
 	*
 	* @var string
 	*/
-	var $controller_name = 'harvest';
+	var $controller_name = 'global_time_harvest';
 	
+	
+	/**
+     * Active time report
+     *
+     * @var TimeReport
+     */
+    var $active_report;
+    
+    /**
+     * Constructor
+     *
+     * @param Request $request
+     * @return PeopleController
+     */
+	function __construct($request)
+	{
+		parent::__construct($request);
+		
+		if(!$this->logged_user->isAdministrator() && !$this->logged_user->getSystemPermission('use_time_reports'))
+		{
+			$this->httpError(HTTP_ERR_FORBIDDEN);
+		}
+		
+		$this->wireframe->addBreadCrumb(lang('Time'), assemble_url('global_time'));
+		if(TimeReport::canAdd($this->logged_user))
+		{
+			$this->wireframe->addPageAction(lang('New Report'), assemble_url('global_time_report_add'));
+		} // if
+		
+		$report_id = $this->request->getId('report_id');
+		if($report_id)
+		{
+			$this->active_report = TimeReports::findById($report_id);
+		}
+		
+		if(instance_of($this->active_report, 'TimeReport'))
+		{
+			$this->wireframe->addBreadCrumb($this->active_report->getName(), $this->active_report->getUrl());
+		}
+		else
+		{
+			$this->active_report = new TimeReport();
+		}
+		
+		$this->wireframe->current_menu_item = 'time';
+		
+		$this->smarty->assign('active_report', $this->active_report);
+	}
+
 	
 	/**
 	* Present a list of time entries and submit them to the selected project
@@ -28,6 +72,16 @@ class HarvestController extends TimetrackingController
 		if(!$this->logged_user->getSystemPermission('can_submit_harvest'))
 		{
 			$this->httpError(HTTP_ERR_FORBIDDEN, null, true, $this->request->isApiCall());
+		}
+		
+		if($this->active_report->isNew())
+		{
+			$this->httpError(HTTP_ERR_NOT_FOUND);
+		}
+		
+		if(!$this->active_report->canView($this->logged_user))
+		{
+			$this->httpError(HTTP_ERR_FORBIDDEN);
 		}
 		
 /*
@@ -70,19 +124,26 @@ class HarvestController extends TimetrackingController
 		}
 		
 		
-		$per_page = 20;
-		$page = (integer) $this->request->get('page');
+		$arrTimeRecords = HarvestTimeRecords::executeReport($this->logged_user, $this->active_report);
 		
-		if($page < 1)
+		$total_time = 0;
+		if(is_foreachable($arrTimeRecords))
 		{
-			$page = 1;
+			if($this->active_report->getSumByUser())
+			{
+				foreach($arrTimeRecords as $report_record)
+				{
+					$total_time += $report_record['total_time'];
+				}
+			}
+			else
+			{
+				foreach($arrTimeRecords as $report_record)
+				{
+					$total_time += $report_record->getValue();
+				}
+			}
 		}
-		
-		list($arrTimeRecords, $pagination) = HarvestTimeRecords::paginate(array
-		(
-			'conditions' => array('project_id = ? AND type = ? AND state >= ? AND visibility >= ? AND integer_field_2=?' . ($is_admin ? '' : ' AND integer_field_1=?'), $this->active_project->getId(), 'TimeRecord', STATE_VISIBLE, $this->logged_user->getVisibility(), BILLABLE_STATUS_BILLABLE, $this->logged_user->getId()),
-			'order' => 'date_field_1 DESC, id DESC',
-		), $page, $per_page);
 		
 		
 		$tasks = array();
@@ -90,13 +151,8 @@ class HarvestController extends TimetrackingController
 		
 		if (is_object($xml))
 		{
-			$active_project = (int)ProjectConfigOptions::getValue('harvest_project', $this->active_project);
-			
 			foreach( $xml->projects->project as $project )
 			{
-				if ($active_project > 0 && (int)$project->id != $active_project)
-					continue;
-				
 				foreach( $project->tasks->task as $task )
 				{
 					$tasks[strval($project->name . ' (' . $project->client . ')')][intval($project->id) . ':' . intval($task->id)] = strval($task->name . ($task->billable ? '' : ' (not billable)'));
@@ -111,11 +167,17 @@ class HarvestController extends TimetrackingController
 		
 		if ($this->request->isSubmitted() && $task[0] > 0 && $task[1] > 0)
 		{
+			$available = 0;
 			$count = 0;
 			
 			foreach( $arrTimeRecords as $objTimeRecord )
 			{
-				if ($objTimeRecord->getBillableStatus() >= BILLABLE_STATUS_PENDING_PAYMENT || !in_array($objTimeRecord->getId(), $record_ids))
+				if ($objTimeRecord->getBillableStatus() >= BILLABLE_STATUS_PENDING_PAYMENT || (!$is_admin && $objTimeRecord->getUserEmail() != $this->logged_user->getEmail()))
+					continue;
+				
+				++$available;
+				
+				if (!in_array($objTimeRecord->getId(), $record_ids))
 					continue;
 				
 				$of_user = $user;
@@ -149,31 +211,34 @@ class HarvestController extends TimetrackingController
 					$objTimeRecord->setFloatField2((float)$timer->day_entry->id);
 					$objTimeRecord->setBillableStatus(BILLABLE_STATUS_PENDING_PAYMENT);
 					$objTimeRecord->save();
-					$count++;
+					++$count;
 				}
 			}
 			
 			flash_success($count . " time records have been sent to Harvest.");
 			
-			if ($count < count($arrTimeRecords))
+			if ($count < $available)
 			{
-				$this->redirectTo('project_time_submit_harvest', array('project_id' => $this->active_project->getId()));
+				$this->redirectTo('global_time_harvest', array('report_id' => $this->active_report->getId()));
 			}
 			else
 			{
-				$this->redirectTo('project_time', array('project_id' => $this->active_project->getId()));
+				$this->redirectTo('global_time', array('report_id' => $this->active_report->getId()));
 			}
 		}
-			
+
+
 		$this->smarty->assign(array(
-			'timetracking_data' => $timetracking_data,
-			'timerecords'		=> $arrTimeRecords,
-			'pagination'		=> $pagination,
+			'grouped_reports'	=> TimeReports::findGrouped(),
+			'report_records'	=> $arrTimeRecords,
+			'total_time'		=> $total_time,
+			'show_project'		=> true,
+			'user_email'		=> $this->logged_user->getEmail(),
 			'tasks'				=> $tasks,
 			'users'				=> $users['by_id'],
 			'is_admin'			=> $is_admin,
-			'submit_url'		=> assemble_url('project_time_submit_harvest', array('project_id' => $this->active_project->getId())),
-	  	));
+			'submit_url'		=> assemble_url('global_time_harvest', array('report_id' => $this->active_report->getId())),
+		));
 	}
 }
 

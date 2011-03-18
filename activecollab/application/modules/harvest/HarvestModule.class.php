@@ -37,7 +37,8 @@ class HarvestModule extends Module
 	*/
 	function defineRoutes(&$router)
 	{
-		$router->map('project_time_submit_harvest', 'projects/:project_id/time/harvest', array('controller' => 'harvest', 'action' => 'submit'), array('project_id' => '\d+'));
+		$router->map('global_time_harvest', 'time/:report_id/harvest', array('controller' => 'global_time_harvest', 'action' => 'submit'), array('report_id' => '\d+'));
+		$router->map('project_time_harvest', 'projects/:project_id/time/harvest', array('controller' => 'project_time_harvest', 'action' => 'submit'), array('project_id' => '\d+'));
 		$router->map('profile_harvest', 'people/:company_id/users/:user_id/harvest', array('controller' => 'profile_harvest', 'action' => 'index'), array('company_id' => '\d+', 'user_id' => '\d+'));
 		$router->map('project_harvest', 'projects/:project_id/harvest', array('controller' => 'project_harvest', 'action' => 'index'), array('project_id' => '\d+'));
 		$router->map('project_harvest_sync', 'projects/:project_id/harvest/sync', array('controller' => 'project_harvest', 'action' => 'sync'), array('project_id' => '\d+'));

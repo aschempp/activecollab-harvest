@@ -129,5 +129,44 @@ class HarvestTimeRecords extends TimeRecords
 			return count($items) ? $items : null;
 		} // if
     } // findBySQL
+    
+    
+    
+        /**
+     * Execute report
+     *
+     * @param User $user
+     * @param TimeReport $report
+     * @param Project $project
+     * @return array
+     */
+    function executeReport($user, $report, $project = null) {
+      $conditions = $report->prepareConditions($user, $project);
+      if(empty($conditions)) {
+        return null;
+      } // if
+      
+    	if($report->getSumByUser()) {
+    	  $rows = db_execute_all('SELECT SUM(float_field_1) AS total_time, integer_field_1 AS user_id FROM ' . TABLE_PREFIX . 'project_objects WHERE ' . $conditions . ' GROUP BY integer_field_1');
+    	  if(is_foreachable($rows)) {
+    	    $result = array();
+    	    foreach($rows as $row) {
+    	      $user = Users::findById($row['user_id']);
+    	      if(instance_of($user, 'User')) {
+    	        $result[] = array(
+    	          'user' => $user,
+    	          'total_time' => float_format($row['total_time'], 2),
+    	        );
+    	      } // if
+    	    } // foreach
+    	    return $result;
+    	  } else {
+    	    return null;
+    	  } // if
+    	} else {
+    	  return HarvestTimeRecords::findBySQL('SELECT * FROM ' . TABLE_PREFIX . 'project_objects WHERE ' . $conditions . ' ORDER BY date_field_1');
+    	} // if
+    } // executeReport
+
 }
 
