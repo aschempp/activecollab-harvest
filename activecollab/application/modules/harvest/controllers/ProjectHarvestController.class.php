@@ -56,6 +56,8 @@ class ProjectHarvestController extends ProjectController
 			
 			ProjectConfigOptions::setValue('harvest_project', (int)$project, $this->active_project);
 			ProjectConfigOptions::setValue('harvest_download', (int)$download, $this->active_project);
+			
+			cache_remove_by_pattern('*project_config*');
 						
 			flash_success("Harvest settings successfully saved");
 			$this->redirectTo('project_overview', array('project_id' => $this->active_project->getId()));
