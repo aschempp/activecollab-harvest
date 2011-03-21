@@ -34,7 +34,7 @@
 	        <tbody>
 	        {if is_foreachable($timerecords)}
 	          {foreach from=$timerecords item=timerecord}
-	            {include_template name=_time_row controller=harvest module=harvest}
+	            {include_template name=_time_row controller=project_time_harvest module=harvest}
 	          {/foreach}
 	        {/if}
 	      </tbody>
