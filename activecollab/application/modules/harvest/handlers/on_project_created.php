@@ -45,7 +45,7 @@ function harvest_handle_on_project_created(&$project, &$template)
 			}
 		}
 		
-		// Add client to Harvest
+		// @todo Add client to Harvest
 		if ($client_id === false)
 		{
 			throw new Exception('Client not available in Harvest');
@@ -56,7 +56,9 @@ function harvest_handle_on_project_created(&$project, &$template)
 		$harvestProject->set('active', true);
 		$harvestProject->set('client-id', $client_id);
 		
-		$HaPi->createProject($harvestProject);
+		$response = $HaPi->createProject($harvestProject);
+		
+		ProjectConfigOptions::setValue('harvest_project', $response->data, $project);
 	}
 }
 
