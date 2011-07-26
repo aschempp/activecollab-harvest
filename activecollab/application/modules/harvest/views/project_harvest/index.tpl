@@ -15,17 +15,6 @@
         {/wrap}
       </div>
       
-      <div class="clear"></div>
-      
-      <div class="col_wide">
-        {wrap field=download}
-          {label for=download}Download Timesheet{/label}
-          <label for="configDownloadYes" class="inline"><input name="config[download]" type="radio" class="inline" id="configDownloadYes" value="1"{if $config.download == '1'} checked="checked"{/if} /> {lang}Yes{/lang}</label>
-          <label for="configDownloadNo" class="inline"><input name="config[download]" type="radio" class="inline" id="configDownloadNo" value="0"{if $config.download != '1'} checked="checked"{/if} /> {lang}No{/lang}</label>
-          <p class="details">Download time records from Harvest to ActiveCollab.</p>         
-        {/wrap}
-      </div>
-      
 	{wrap_buttons}
 		{submit}Submit{/submit}
 	{/wrap_buttons}

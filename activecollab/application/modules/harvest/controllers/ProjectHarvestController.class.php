@@ -54,17 +54,12 @@ class ProjectHarvestController extends ProjectController
 			$config = array
 			(
 				'project' => ProjectConfigOptions::getValue('harvest_project', $this->active_project),
-				'download' => ProjectConfigOptions::getValue('harvest_download', $this->active_project),
 			);
 		}
 		
 		if ($this->request->isSubmitted())
 		{
-			$project = array_var($config, 'project', null);
-			$download = array_var($config, 'download', null);
-			
-			ProjectConfigOptions::setValue('harvest_project', (int)$project, $this->active_project);
-			ProjectConfigOptions::setValue('harvest_download', (int)$download, $this->active_project);
+			ProjectConfigOptions::setValue('harvest_project', (int)array_var($config, 'project', null), $this->active_project);
 			
 			cache_remove_by_pattern('*project_config*');
 						
@@ -104,10 +99,9 @@ class ProjectHarvestController extends ProjectController
 			$this->httpError(HTTP_ERR_FORBIDDEN, null, true, $this->request->isApiCall());
 		}
 		
-		$download = ProjectConfigOptions::getValue('harvest_download', $this->active_project);
 		$project = ProjectConfigOptions::getValue('harvest_project', $this->active_project);
 		
-		if (!$download || !$project)
+		if (!$project)
 		{
 			flash_error('Please link this project to a Harvest project.');
 			$this->redirectTo('project_overview', array('project_id' => $this->active_project->getId()));

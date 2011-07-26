@@ -22,7 +22,7 @@ function harvest_handle_on_project_options(&$options, &$project, &$logged_user)
 		));
 	}
 	
-	if ($logged_user->getSystemPermission('can_submit_harvest') && ProjectConfigOptions::getValue('harvest_project', $project) > 0 && ProjectConfigOptions::getValue('harvest_download', $project))
+	if ($logged_user->getSystemPermission('can_submit_harvest') && ProjectConfigOptions::getValue('harvest_project', $project) > 0)
 	{
 		$options->add('harvest_sync', array
 		(

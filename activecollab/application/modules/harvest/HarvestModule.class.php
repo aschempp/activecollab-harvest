@@ -58,6 +58,8 @@ class HarvestModule extends Module
 		$events->listen('on_user_options', 'on_user_options');
 		$events->listen('on_project_options', 'on_project_options');
 		$events->listen('on_project_created', 'on_project_created');
+		$events->listen('on_project_completed', 'on_project_completed');
+		$events->listen('on_project_opened', 'on_project_opened');
 //		$events->listen('on_daily', 'on_daily');
 	}
 	
@@ -116,7 +118,6 @@ class HarvestModule extends Module
 		
 		// project config options
 		$this->addConfigOption('harvest_project', PROJECT_CONFIG_OPTION, 0);
-		$this->addConfigOption('harvest_download', PROJECT_CONFIG_OPTION, 0);
 		
 		return parent::install();
 	}
