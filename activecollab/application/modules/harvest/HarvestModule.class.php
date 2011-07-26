@@ -57,6 +57,7 @@ class HarvestModule extends Module
 		$events->listen('on_system_permissions', 'on_system_permissions');
 		$events->listen('on_user_options', 'on_user_options');
 		$events->listen('on_project_options', 'on_project_options');
+		$events->listen('on_project_created', 'on_project_created');
 //		$events->listen('on_daily', 'on_daily');
 	}
 	

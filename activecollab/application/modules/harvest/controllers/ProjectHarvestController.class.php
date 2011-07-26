@@ -3,9 +3,6 @@
 // Extends users controller
 use_controller('project', SYSTEM_MODULE);
 
-// include ProjectConfigOptions model
-require_once SYSTEM_MODULE_PATH . '/models/ProjectConfigOptions.class.php';
-
 class ProjectHarvestController extends ProjectController
 {
 
@@ -16,6 +13,10 @@ class ProjectHarvestController extends ProjectController
 	*/
 	var $controller_name = 'project_harvest';
 	
+	/**
+	 * Harvest API instance
+	 */
+	var $HaPi;
 	
 	/**
 	 * Add menu option
@@ -23,7 +24,15 @@ class ProjectHarvestController extends ProjectController
 	function __construct($request)
 	{
 		parent::__construct($request);
+		
+		// Add breadcrumb
 		$this->wireframe->addBreadCrumb(lang('Harvest Settings'));
+		
+		// Initialize Harvest API
+		$this->HaPi = new HarvestAPI();
+		$this->HaPi->setUser(UserConfigOptions::getValue('harvest_user', $this->logged_user));
+		$this->HaPi->setPassword(UserConfigOptions::getValue('harvest_pass', $this->logged_user));
+		$this->HaPi->setAccount('iserv');
 	}
 	
 	
@@ -63,24 +72,26 @@ class ProjectHarvestController extends ProjectController
 			$this->redirectTo('project_overview', array('project_id' => $this->active_project->getId()));
 		}
 		
-		
 		// Retrieve active projects from Harvest
-		$projects = array();
-		$xml = harvest_request_xml($this->logged_user, 'daily');
-		
-		if (is_object($xml))
+		$objDaily = $this->HaPi->getDailyActivity();
+		$arrProject = array();
+		if ($objDaily->isSuccess())
 		{
-			foreach( $xml->projects->project as $project )
+			foreach( $objDaily->data->projects as $objProject )
 			{
-				$projects[(int)$project->id] = strval($project->name . ' (' . $project->client . ')');
+				$arrProjects[$objProject->id] = $objProject->name . ' (' . $objProject->client . ')';
 			}
 		}
+		else
+		{
+			flash_error('Connecting to Harvest failed. Please check your access credentials.');
+		}
 		
-		asort($projects);
+		natcasesort($arrProjects);
 		
 		$this->smarty->assign(array
 		(
-			'projects' => $projects,
+			'projects' => $arrProjects,
 			'config' => $config,
 		));
 	}
