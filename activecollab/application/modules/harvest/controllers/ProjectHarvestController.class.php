@@ -75,7 +75,7 @@ class ProjectHarvestController extends ProjectController
 		{
 			foreach( $objDaily->data->projects as $objProject )
 			{
-				$arrProjects[$objProject->id] = $objProject->name . ' (' . $objProject->client . ')';
+				$arrProjects[$objProject->client][$objProject->id] = $objProject->name;
 			}
 		}
 		else
@@ -84,6 +84,16 @@ class ProjectHarvestController extends ProjectController
 		}
 		
 		natcasesort($arrProjects);
+		
+		$objCompany = $this->active_project->getCompany();
+		if (instance_of($objCompany, 'Company') && is_array($arrProjects[$objCompany->getName()]))
+		{
+			$arrCompany = array($objCompany->getName() => $arrProjects[$objCompany->getName()]);
+			unset($arrProjects[$objCompany->getName()]);
+			
+			$arrBuffer = array_splice($arrProjects, 0, $intIndex);
+			$arrProjects = array_merge_recursive($arrBuffer, $arrCompany, $arrProjects);
+		}
 		
 		$this->smarty->assign(array
 		(
