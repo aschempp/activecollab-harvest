@@ -13,18 +13,20 @@ require_once SYSTEM_MODULE_PATH . '/models/ProjectConfigOptions.class.php';
  */
 function harvest_handle_on_project_completed(&$project, &$user, &$status)
 {
-	if(!ProjectConfigOptions::getValue('harvest_project', $project) || !$user->getSystemPermission('can_submit_harvest') || !$user->getSystemPermission('project_management'))
+	$intHarvestID = ProjectConfigOptions::getValue('harvest_project', $project);
+	
+	if (!ConfigOptions::getValue('harvest_create_project') || !$intHarvestID)
 	{
 		return;
 	}
 	
 	// Initialize Harvest API
 	$HaPi = new HarvestAPI();
-	$HaPi->setUser(UserConfigOptions::getValue('harvest_user', $user));
-	$HaPi->setPassword(UserConfigOptions::getValue('harvest_pass', $user));
-	$HaPi->setAccount('iserv');
+	$HaPi->setUser(ConfigOptions::getValue('harvest_user'));
+	$HaPi->setPassword(ConfigOptions::getValue('harvest_pass'));
+	$HaPi->setAccount(ConfigOptions::getValue('harvest_account'));
 	
-	$objHarvestProject = $HaPi->getProject(ProjectConfigOptions::getValue('harvest_project', $project));
+	$objHarvestProject = $HaPi->getProject($intHarvestID);
 	
 	if ($objHarvestProject->isSuccess() && $objHarvestProject->data->active)
 	{

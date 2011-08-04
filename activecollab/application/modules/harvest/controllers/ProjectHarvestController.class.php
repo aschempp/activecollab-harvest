@@ -18,6 +18,7 @@ class ProjectHarvestController extends ProjectController
 	 */
 	var $HaPi;
 	
+	
 	/**
 	 * Add menu option
 	 */
@@ -30,14 +31,14 @@ class ProjectHarvestController extends ProjectController
 		
 		// Initialize Harvest API
 		$this->HaPi = new HarvestAPI();
-		$this->HaPi->setUser(UserConfigOptions::getValue('harvest_user', $this->logged_user));
-		$this->HaPi->setPassword(UserConfigOptions::getValue('harvest_pass', $this->logged_user));
-		$this->HaPi->setAccount('iserv');
+		$this->HaPi->setUser(ConfigOptions::getValue('harvest_user'));
+		$this->HaPi->setPassword(ConfigOptions::getValue('harvest_pass'));
+		$this->HaPi->setAccount(ConfigOptions::getValue('harvest_account'));
 	}
 	
 	
 	/**
-	 * Present a form to enter Harvest Credentials for a user
+	 * Present a form to link a Harvest project with this aC project
 	 * @return void
 	 */
 	function index()
@@ -86,12 +87,18 @@ class ProjectHarvestController extends ProjectController
 		
 		$this->smarty->assign(array
 		(
-			'projects' => $arrProjects,
-			'config' => $config,
+			'projects'	=> $arrProjects,
+			'config'	=> $config,
 		));
 	}
 	
 	
+	/**
+	 * Manually trigger a sync
+	 *
+	 * @param	void
+	 * @return	void
+	 */
 	function sync()
 	{
 		if(!$this->logged_user->getSystemPermission('can_submit_harvest') || !TimeRecord::canAdd($this->logged_user, $this->active_project))
@@ -107,13 +114,17 @@ class ProjectHarvestController extends ProjectController
 			$this->redirectTo('project_overview', array('project_id' => $this->active_project->getId()));
 		}
 		
-		$project = harvest_request_xml($this->logged_user, 'projects/'.$project);
-		$start = strtotime($project->{'hint-earliest-record-at'});
+		$objRequest = $this->HaPi->getProject($project);
 		
-		if ($project === false || $start === false)
+		if (!$objRequest->isSuccess())
 		{
+			flash_error('Failed to load project from Harvest. Please check your credentials.');
 			$this->redirectTo('project_overview', array('project_id' => $this->active_project->getId()));
 		}
+		
+		$objProject = $objRequest->data;
+		
+		$start = strtotime($objProject->{'hint-earliest-record-at'});
 		
 		if ($this->request->isAsyncCall())
 		{
@@ -125,15 +136,15 @@ class ProjectHarvestController extends ProjectController
 				$stop = mktime(0, 0, 0, date('m', $start)+1, 0, date('Y', $start));
 			}
 			
-			$latest = strtotime($project->{'hint-latest-record-at'});
+			$latest = strtotime($objProject->{'hint-latest-record-at'});
 			if ($latest !== false && $stop > $latest)
 			{
 				$stop = $latest;
 			}
 			
 			$arrUsers = array();
-			$objPeople = harvest_request_xml($this->logged_user, 'people');
-			foreach( $objPeople->user as $objPerson )
+			$objPeople = $this->HaPi->getUsers();
+			foreach( $objPeople->data as $objPerson )
 			{
 				$objUser = Users::findByEmail((string)$objPerson->email);
 				
@@ -143,14 +154,15 @@ class ProjectHarvestController extends ProjectController
 				}
 			}
 			
-			$objEntries = harvest_request_xml($this->logged_user, 'projects/'.(int)$project->id.'/entries?from='.date('Ymd', $start).'&to='.date('Ymd', $stop));
+			$objRange = new Harvest_Range(date('Ymd', $start), date('Ymd', $stop));
+			$objEntries = $this->HaPi->getProjectEntries($objProject->id, $objRange);
 			
-			if ($objEntries !== false && count($objEntries->{'day-entry'}) > 0)
+			if ($objEntries->isSuccess() && count($objEntries->data) > 0)
 			{
 				// Store tasks assigned to this project
 				$arrTasks = array();
-				$objTasks = harvest_request_xml($this->logged_user, 'projects/'.(int)$project->id.'/task_assignments');
-				foreach( $objTasks->{'task-assignment'} as $objTask )
+				$objTasks = $this->HaPi->getProjectTaskAssignments($objProject->id);
+				foreach( $objTasks->data as $objTask )
 				{
 					$arrTasks[(int)$objTask->{'task-id'}] = array
 					(
@@ -159,8 +171,8 @@ class ProjectHarvestController extends ProjectController
 				}
 				
 				// Get task names
-				$objTasks = harvest_request_xml($this->logged_user, 'tasks');
-				foreach( $objTasks->task as $objTask )
+				$objTasks = $this->HaPi->getTasks();
+				foreach( $objTasks->data as $objTask )
 				{
 					if (is_array($arrTasks[(int)$objTask->id]))
 					{
@@ -170,7 +182,7 @@ class ProjectHarvestController extends ProjectController
 				
 				$arrTimeRecords = HarvestTimeRecords::findByProject($this->active_project);
 				
-				foreach( $objEntries->{'day-entry'} as $objEntry )
+				foreach( $objEntries->data as $objEntry )
 				{
 					$blnFound = false;
 					
@@ -218,15 +230,21 @@ class ProjectHarvestController extends ProjectController
 						$strTask = $arrTasks[(int)$objEntry->{'task-id'}]['name'];
 						$strNote = (string)$objEntry->notes;
 						
-						if (preg_match('@Ticket #([0-9]+)@', $strNote, $match))
+						if (preg_match('@(complete[d]?[\s]+)?ticket[\s]+[#]?(\d+):?@', strtolower($strNote), $match))
 				        {
-				        	$objTicket = Tickets::findByTicketId($this->active_project, (int)$match[1]);
+				        	$objTicket = Tickets::findByTicketId($this->active_project, (int)$match[2]);
 				        	
 				        	if (instance_of($objTicket, 'Ticket'))
 				        	{
 				        		$objTimeRecord->setParent($objTicket);
-				        		$strNote = trim(preg_replace('@\(?'.$match[0].'\)?@', '', $strNote));
+				        		$strNote = trim(preg_replace('@\(?'.$match[0].'\)?@i', '', $strNote));
 				        		$strTask = '';
+				        		
+				        		// Complete ticket
+				        		if (strpos($match[1], 'complete') !== false)
+				        		{
+				        			$objTicket->complete($objUser);
+				        		}
 				        	}
 				        }
 						

@@ -6,59 +6,66 @@
  * @param array $permissions
  * @return null
  */
-function harvest_handle_on_project_created(&$project, &$template)
+function harvest_handle_on_project_created(&$objProject, &$objTemplate)
 {
-	$user =& Authentication::instance()->provider->getUser();
-	
-	if(!$user->getSystemPermission('can_submit_harvest') || !$user->getSystemPermission('project_management'))
+	if (!ConfigOptions::getValue('harvest_create_project'))
 	{
 		return;
 	}
 	
 	// Initialize Harvest API
 	$HaPi = new HarvestAPI();
-	$HaPi->setUser(UserConfigOptions::getValue('harvest_user', $user));
-	$HaPi->setPassword(UserConfigOptions::getValue('harvest_pass', $user));
-	$HaPi->setAccount('iserv');
+	$HaPi->setUser(ConfigOptions::getValue('harvest_user'));
+	$HaPi->setPassword(ConfigOptions::getValue('harvest_pass'));
+	$HaPi->setAccount(ConfigOptions::getValue('harvest_account'));
 	
 	// activeCollab client company
-	$company = $project->getCompany();
+	$strCompany = $objProject->getCompany();
 	
-	if (is_null($company))
+	if (is_null($strCompany))
 	{
-		$company = $user->getCompany();
+		$objUser =& Authentication::instance()->provider->getUser();
+		$strCompany = $objUser->getCompany();
 	}
 	
 	// Harvest clients
-	$clients = $HaPi->getClients();
+	$objClients = $HaPi->getClients();
 	
-	if ($clients->isSuccess())
+	if ($objClients->isSuccess())
 	{
-		$client_id = false;
+		$intClientID = false;
 		
-		foreach( $clients->data as $client )
+		foreach( $objClients->data as $objClient )
 		{
-			if ($client->name == $company->getName())
+			if ($objClient->name == $strCompany->getName())
 			{
-				$client_id = $client->id;
+				$intClientID = $objClient->id;
 				break;
 			}
 		}
 		
-		// @todo Add client to Harvest
-		if ($client_id === false)
+		// Client not found in Harvest
+		if ($intClientID === false)
 		{
-			throw new Exception('Client not available in Harvest');
+			if (ConfigOptions::getValue('harvest_create_client'))
+			{
+				// @todo implement client creation
+				throw new Exception('Client not found in Harvest');
+			}
+			else
+			{
+				return;
+			}
 		}
 		
-		$harvestProject = new Harvest_Project();
-		$harvestProject->set('name', $project->getName());
-		$harvestProject->set('active', true);
-		$harvestProject->set('client-id', $client_id);
+		$objHarvestProject = new Harvest_Project();
+		$objHarvestProject->set('name', $objProject->getName());
+		$objHarvestProject->set('active', true);
+		$objHarvestProject->set('client-id', $intClientID);
 		
-		$response = $HaPi->createProject($harvestProject);
+		$objResponse = $HaPi->createProject($objHarvestProject);
 		
-		ProjectConfigOptions::setValue('harvest_project', $response->data, $project);
+		ProjectConfigOptions::setValue('harvest_project', $objResponse->data, $objProject);
 	}
 }
 

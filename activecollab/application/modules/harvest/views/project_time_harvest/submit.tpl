@@ -1,5 +1,4 @@
 {title}Submit to Harvest{/title}
-{add_bread_crumb}Submit to Harvest{/add_bread_crumb}
 
 <div id="timerecords">
   {if $pagination->getLastPage() > 1}

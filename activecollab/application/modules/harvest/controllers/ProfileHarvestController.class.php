@@ -41,7 +41,6 @@ class ProfileHarvestController extends UsersController
 		{
 			$harvest_data = array
 			(
-				'domain' => UserConfigOptions::getValue('harvest_domain', $this->active_user),
 				'user' => UserConfigOptions::getValue('harvest_user', $this->active_user),
 				'pass' => UserConfigOptions::getValue('harvest_pass', $this->active_user),
 			);
@@ -51,9 +50,7 @@ class ProfileHarvestController extends UsersController
 		{
 			$user = array_var($harvest_data, 'user', null);
 			$pass = array_var($harvest_data, 'pass', null);
-			$domain = array_var($harvest_data, 'domain', null);
 			
-			UserConfigOptions::setValue('harvest_domain', $domain, $this->active_user);
 			UserConfigOptions::setValue('harvest_user', $user, $this->active_user);
 			
 			if (strlen($pass))
