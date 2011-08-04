@@ -90,16 +90,22 @@ class ProjectTimeHarvestController extends TimetrackingController
 		
 		
 		$arrTasks = array();
-		$objTasks = $this->HaPi->getProjectTaskAssignments($intHarvestID);
-				
-		if ($objTasks->isSuccess())
+		$objDaily = $this->HaPi->getDailyActivity();
+
+		if ($objDaily->isSuccess())
 		{
-			foreach( $objTasks->data as $objTask )
+			foreach( $objDaily->data->projects as $objProject )
 			{
-				if ($objTask->deactivated)
+				if ($objProject->id != $intHarvestID)
 					continue;
 				
-				$arrTasks[$objTask->id] = $objTask->name . ($objTask->billable ? '' : ' (not billable)');
+				foreach( $objProject->tasks as $objTask )
+				{
+					if ($objAssignment->deactivated == 'true')
+						continue;
+				
+					$arrTasks[$objTask->id] = $objTask->name . ($objTask->billable == 'true' ? '' : ' (not billable)');
+				}
 			}
 		}
 		
@@ -117,14 +123,15 @@ class ProjectTimeHarvestController extends TimetrackingController
 				if ($objTimeRecord->getBillableStatus() >= BILLABLE_STATUS_PENDING_PAYMENT || !in_array($objTimeRecord->getId(), $record_ids))
 					continue;
 				
+				// @todo non-admin will always submit to the Admin account
 				$of_user = $user;
-				if ($blnAdmin && $user == 0)
+				if ($user == 0)
 				{
 					$of_user = $arrUsers['by_email'][$objTimeRecord->getUserEmail()];
-					
-					if (!$of_user)
-						continue;
 				}
+				
+				if (!$of_user)
+					continue;
 				
 				$note = $objTimeRecord->getBody();
 				$parent = $objTimeRecord->getParent();
@@ -134,18 +141,18 @@ class ProjectTimeHarvestController extends TimetrackingController
 					$note = $parent->getName() . (strlen($note) ? ' – ' : '') . $note;
 				}
 				
-				$post = '
-<request>
-  <notes>' . $note . '</notes>
-  <hours>' . $objTimeRecord->getValue() . '</hours>
-  <project_id type="integer">' . $intHarvestID . '</project_id>
-  <task_id type="integer">' . $intTask . '</task_id>
-  <spent_at type="date">' . date('D, d M Y', $objTimeRecord->getRecordDate()->timestamp) . '</spent_at>
-</request>';
+				$objEntry = new Harvest_DayEntry();
+				$objEntry->set('notes', $note);
+				$objEntry->set('hours', $objTimeRecord->getValue());
+				$objEntry->set('project_id', $intHarvestID);
+				$objEntry->set('task_id', $intTask);
+				$objEntry->set('spent_at', date('D, d M Y', $objTimeRecord->getRecordDate()->timestamp));
 				
-				if (($timer = harvest_request_xml($this->logged_user, 'daily/add' . ($blnAdmin ? '?of_user='.$of_user : ''), $post)) !== false)
+				$objResult = $this->HaPi->createEntry($objEntry, $of_user);
+				
+				if ($objResult->isSuccess())
 				{
-					$objTimeRecord->setFloatField2((float)$timer->day_entry->id);
+					$objTimeRecord->setFloatField2((float)$objResult->data->id);
 					$objTimeRecord->setBillableStatus(BILLABLE_STATUS_PENDING_PAYMENT);
 					$objTimeRecord->save();
 					$count++;

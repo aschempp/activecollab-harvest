@@ -292,9 +292,9 @@
      * @param $entry    Day Entry
      * @return Harvest_Result
      */
-    public function createEntry( $entry ) 
+    public function createEntry( $entry, $of_user=0 ) 
     {
-        $url = "daily/add";
+        $url = "daily/add" . ($of_user > 0 ? '?of_user='.$of_user : '');
         return $this->performPOST( $url, $entry->toXML(), false );
     }
 

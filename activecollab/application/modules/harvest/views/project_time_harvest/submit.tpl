@@ -51,12 +51,8 @@
 	    {/if}
 	      <select name="task" class="auto">
 	        <option value="">{lang}Select project/task ...{/lang}</option>
-	        {foreach from=$tasks item=group key=name}
-	        <option value=""></option>
-	        <optgroup label="{$name}">
-	          {foreach from=$group item=task key=id}
-	            <option value="{$id}">{$task}</option>
-	          {/foreach}
+	         {foreach from=$tasks item=task key=id}
+	          <option value="{$id}">{$task}</option>
 	        {/foreach}
 	      </select>
 	      <button class="simple" type="submit" class="auto">{lang}Post{/lang}</button>
