@@ -157,6 +157,11 @@ class ProjectTimeHarvestController extends TimetrackingController
 					$objTimeRecord->save();
 					$count++;
 				}
+				else
+				{
+					flash_error($objResult->data);
+					$this->redirectTo('project_time_harvest', array('project_id' => $this->active_project->getId()));
+				}
 			}
 			
 			flash_success($count . " time records have been sent to Harvest.");

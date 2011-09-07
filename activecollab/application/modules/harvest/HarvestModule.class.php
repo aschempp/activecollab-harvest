@@ -59,8 +59,11 @@ class HarvestModule extends Module
 //		$events->listen('on_user_options', 'on_user_options');
 		$events->listen('on_project_options', 'on_project_options');
 		$events->listen('on_project_created', 'on_project_created');
+		$events->listen('on_project_updated', 'on_project_updated');
 		$events->listen('on_project_completed', 'on_project_completed');
 		$events->listen('on_project_opened', 'on_project_opened');
+		$events->listen('on_project_user_added', 'on_project_user_added');
+		$events->listen('on_project_user_removed', 'on_project_user_removed');
 //		$events->listen('on_daily', 'on_daily');
 	}
 	

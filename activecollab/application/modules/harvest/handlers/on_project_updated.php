@@ -1,12 +1,12 @@
 <?php
 
 /**
- * Handle on_system_permissions
+ * Handle on_project_updated
  *
  * @param array $permissions
  * @return null
  */
-function harvest_handle_on_project_created(&$objProject, &$objTemplate)
+function harvest_handle_on_project_updated(&$objProject)
 {
 	if (!ConfigOptions::getValue('harvest_create_project'))
 	{
@@ -69,13 +69,12 @@ function harvest_handle_on_project_created(&$objProject, &$objTemplate)
 		}
 		
 		$objHarvestProject = new Harvest_Project();
-		$objHarvestProject->set('name', $objProject->getName());
-		$objHarvestProject->set('active', true);
-		$objHarvestProject->set('client-id', $intClientID);
+		$objHarvestProject->id = ProjectConfigOptions::getValue('harvest_project', $objProject);
+		$objHarvestProject->name = $objProject->getName();
+		$objHarvestProject->active = true;
+		$objHarvestProject->client_id = $intClientID;
 		
-		$objResponse = $HaPi->createProject($objHarvestProject);
-		
-		ProjectConfigOptions::setValue('harvest_project', $objResponse->data, $objProject);
+		$objResponse = $HaPi->updateProject($objHarvestProject);
 	}
 }
 
