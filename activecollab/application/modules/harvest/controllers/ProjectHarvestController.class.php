@@ -176,7 +176,7 @@ class ProjectHarvestController extends ProjectController
 				{
 					$arrTasks[(int)$objTask->{'task-id'}] = array
 					(
-						'billable'	=> (bool)$objTask->billable,
+						'billable'	=> ($objTask->billable == 'false' ? false : true),
 					);
 				}
 				
