@@ -21,14 +21,5 @@ function harvest_handle_on_project_options(&$options, &$project, &$logged_user)
 			'url'	=> assemble_url('project_harvest', array('project_id' => $project->getId())),
 		));
 	}
-	
-	if ($logged_user->getSystemPermission('can_submit_harvest') && ProjectConfigOptions::getValue('harvest_project', $project) > 0)
-	{
-		$options->add('harvest_sync', array
-		(
-			'text'	=> lang('Sync with Harvest'),
-			'url'	=> assemble_url('project_harvest_sync', array('project_id' => $project->getId())),
-		));
-	}
 }
 

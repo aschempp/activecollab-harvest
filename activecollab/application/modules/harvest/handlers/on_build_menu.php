@@ -14,13 +14,23 @@ function harvest_handle_on_build_menu(&$menu, &$logged_user)
 	
 	if (instance_of($project, 'Project') && ANGIE_PATH_INFO == 'projects/'.$project->getId().'/time' && $logged_user->getSystemPermission('can_submit_harvest') && ProjectConfigOptions::getValue('harvest_project', $project) > 0)
 	{
-		$wf = Wireframe::instance();
-		$wf->addPageAction(lang('Submit to Harvest'), assemble_url('project_time_harvest', array('project_id'=>$project->getId())));
-	}
-	elseif (ANGIE_PATH_INFO == 'time/' . $project_id && $logged_user->getSystemPermission('can_submit_harvest'))
-	{
-		$wf = Wireframe::instance();
-		$wf->addPageAction(lang('Submit to Harvest'), assemble_url('global_time_harvest', array('report_id' => $project_id)));
+		$wireframe = Wireframe::instance();
+		
+		$options = new NamedList();
+		
+		$options->add('harvest_submit', array
+		(
+			'text'	=> 'Submit',
+			'url'	=> assemble_url('project_time_harvest_submit', array('project_id' => $project->getId())),
+		));
+		
+		$options->add('harvest_sync', array
+		(
+			'text'	=> lang('Sync'),
+			'url'	=> assemble_url('project_time_harvest_sync', array('project_id' => $project->getId())),
+		));
+		
+		$wireframe->addPageAction(lang('Harvest'), '#', $options->data, array('id' => 'project_object_options'), 1000);
 	}
 }
 

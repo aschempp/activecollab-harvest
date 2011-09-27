@@ -36,11 +36,9 @@ class HarvestModule extends Module
 	 */
 	function defineRoutes(&$router)
 	{
-		$router->map('global_time_harvest', 'time/:report_id/harvest', array('controller' => 'global_time_harvest', 'action' => 'submit'), array('report_id' => '\d+'));
-		$router->map('project_time_harvest', 'projects/:project_id/time/harvest', array('controller' => 'project_time_harvest', 'action' => 'submit'), array('project_id' => '\d+'));
-		$router->map('profile_harvest', 'people/:company_id/users/:user_id/harvest', array('controller' => 'profile_harvest', 'action' => 'index'), array('company_id' => '\d+', 'user_id' => '\d+'));
 		$router->map('project_harvest', 'projects/:project_id/harvest', array('controller' => 'project_harvest', 'action' => 'index'), array('project_id' => '\d+'));
-		$router->map('project_harvest_sync', 'projects/:project_id/harvest/sync', array('controller' => 'project_harvest', 'action' => 'sync'), array('project_id' => '\d+'));
+		$router->map('project_time_harvest_submit', 'projects/:project_id/time/harvest/submit', array('controller' => 'project_time_harvest', 'action' => 'submit'), array('project_id' => '\d+'));
+		$router->map('project_time_harvest_sync', 'projects/:project_id/time/harvest/sync', array('controller' => 'project_time_harvest', 'action' => 'sync'), array('project_id' => '\d+'));
 		$router->map('admin_harvest', 'admin/harvest', array('controller' => 'admin_harvest', 'action' => 'index'));
 	}
 	
@@ -56,7 +54,6 @@ class HarvestModule extends Module
 		$events->listen('on_build_menu', 'on_build_menu');
 		$events->listen('on_admin_sections', 'on_admin_sections');
 		$events->listen('on_system_permissions', 'on_system_permissions');
-//		$events->listen('on_user_options', 'on_user_options');
 		$events->listen('on_project_options', 'on_project_options');
 		$events->listen('on_project_created', 'on_project_created');
 		$events->listen('on_project_updated', 'on_project_updated');
