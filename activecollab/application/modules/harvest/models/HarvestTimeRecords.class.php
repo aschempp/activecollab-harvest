@@ -1,5 +1,9 @@
 <?php
 
+// include ProjectConfigOptions model
+require_once SYSTEM_MODULE_PATH . '/models/ProjectConfigOptions.class.php';
+
+
 /**
 * Time records manager class
 * 
@@ -167,6 +171,184 @@ class HarvestTimeRecords extends TimeRecords
     	  return HarvestTimeRecords::findBySQL('SELECT * FROM ' . TABLE_PREFIX . 'project_objects WHERE ' . $conditions . ' ORDER BY date_field_1');
     	} // if
     } // executeReport
+    
+    
+    public static function syncProject($HaPi, $active_project, $objProject, $start, $stop)
+    {
+		$arrUsers = array();
+		$objPeople = $HaPi->getUsers();
+		foreach( $objPeople->data as $objPerson )
+		{
+			$objUser = Users::findByEmail((string)$objPerson->email);
+			
+			if ($objUser instanceof User)
+			{
+				$arrUsers[(int)$objPerson->id] = $objUser;
+			}
+		}
+		
+		$objRange = new Harvest_Range(date('Ymd', $start), date('Ymd', $stop));
+		$objEntries = $HaPi->getProjectEntries($objProject->id, $objRange);
+		
+		if ($objEntries->isSuccess() && count($objEntries->data) > 0)
+		{
+			// Store tasks assigned to this project
+			$arrTasks = array();
+			$objTasks = $HaPi->getProjectTaskAssignments($objProject->id);
+			foreach( $objTasks->data as $objTask )
+			{
+				$arrTasks[(int)$objTask->{'task-id'}] = array
+				(
+					'billable'	=> ($objTask->billable == 'false' ? false : true),
+				);
+			}
+			
+			// Get task names
+			$objTasks = $HaPi->getTasks();
+			foreach( $objTasks->data as $objTask )
+			{
+				if (is_array($arrTasks[(int)$objTask->id]))
+				{
+					$arrTasks[(int)$objTask->id]['name'] = (string)$objTask->name;
+				}
+			}
+			
+			$arrTimeRecords = HarvestTimeRecords::findByProject($active_project);
+			
+			foreach( $objEntries->data as $objEntry )
+			{
+				$blnFound = false;
+				
+				foreach( $arrTimeRecords as $objTimeRecord )
+				{
+					if ((int)$objTimeRecord->getFloatField2() == (int)$objEntry->id)
+					{
+						$objTimeRecord->setValue((float)$objEntry->hours);
+						$objTimeRecord->setRecordDate((string)$objEntry->{'spent-at'});
+						
+						$blnFound = true;
+					}
+					
+					// @todo validate harvest/ac member
+					elseif (!(int)$objTimeRecord->getFloatField2() && (string)$objEntry->{'spent-at'} == (string)$objTimeRecord->getRecordDate() && (float)$objEntry->hours == $objTimeRecord->getValue())
+					{
+						$objTimeRecord->setFloatField2((float)$objEntry->id);
+						
+						$blnFound = true;
+					}
+					
+					if ($blnFound)
+					{
+						$objTimeRecord->setBillableStatus(($arrTasks[(int)$objEntry->{'task-id'}]['billable'] ? ($objEntry->{'is-billed'} == 'false' ? BILLABLE_STATUS_PENDING_PAYMENT : BILLABLE_STATUS_BILLED) : BILLABLE_STATUS_NOT_BILLABLE));
+						$objTimeRecord->save();
+						break;
+					}
+				}
+				
+				if (!$blnFound)
+				{
+					$objUser = $arrUsers[(int)$objEntry->{'user-id'}];
+					
+					if (!($objUser instanceof User))
+						continue;
+					
+					$objTimeRecord = new TimeRecord();
+					
+					$arrFields = $objTimeRecord->fields;
+					$arrFields[] = 'float_field_2';
+					$objTimeRecord->fields = $arrFields;
+					
+					$arrFields = $objTimeRecord->field_map;
+					$arrFields['harvest_id'] = 'float_field_2';
+					$objTimeRecord->field_map = $arrFields;
+					
+					$strTask = $arrTasks[(int)$objEntry->{'task-id'}]['name'];
+					$strNote = (string)$objEntry->notes;
+					
+					if (preg_match('@(complete[d]?[\s]+)?ticket[\s]+[#]?(\d+):?@', strtolower($strNote), $match))
+			        {
+			        	$objTicket = Tickets::findByTicketId($active_project, (int)$match[2]);
+			        	
+			        	if (instance_of($objTicket, 'Ticket'))
+			        	{
+			        		$objTimeRecord->setParent($objTicket);
+			        		$strNote = trim(preg_replace('@\(?'.$match[0].'\)?@i', '', $strNote));
+			        		$strTask = '';
+			        		
+			        		// Complete ticket
+			        		if (strpos($match[1], 'complete') !== false)
+			        		{
+			        			$objTicket->complete($objUser);
+			        		}
+			        	}
+			        }
+					
+					$timetracking_data = array
+					(
+						'user_id'			=> $objUser->getId(),
+						'record_user'		=> $objUser,
+						'record_date'		=> (string)$objEntry->{'spent-at'},
+						'value'				=> (float)$objEntry->hours,
+						'billable_status'	=> ($arrTasks[(int)$objEntry->{'task-id'}]['billable'] ? ($objEntry->{'is-billed'} == 'false' ? BILLABLE_STATUS_PENDING_PAYMENT : BILLABLE_STATUS_BILLED) : BILLABLE_STATUS_NOT_BILLABLE),
+						'body'				=> ($strNote == '' ? $strTask : $strNote),
+						'harvest_id'		=> (float)$objEntry->id,
+					);
+					
+					$objTimeRecord->setAttributes($timetracking_data);
+					$objTimeRecord->setProjectId($active_project->getId());
+			        $objTimeRecord->setCreatedBy($objUser);
+			        $objTimeRecord->setState(STATE_VISIBLE);
+			        $objTimeRecord->setUser($objUser);
+			        
+		        	$objTimeRecord->setVisibility(VISIBILITY_NORMAL);
+					
+					$objTimeRecord->save();
+				}
+			}
+		}
+    }
+    
+    
+    public static function syncAll()
+    {
+    	// Initialize Harvest API
+		$HaPi = new HarvestAPI();
+		$HaPi->setUser(ConfigOptions::getValue('harvest_user'));
+		$HaPi->setPassword(ConfigOptions::getValue('harvest_pass'));
+		$HaPi->setAccount(ConfigOptions::getValue('harvest_account'));
+		
+		$arrProjects = Projects::findAll();
+		
+		foreach( $arrProjects as $active_project )
+		{
+			$project = ProjectConfigOptions::getValue('harvest_project', $active_project);
+		
+			if (!$project)
+			{
+				continue;
+			}
+			
+			$objRequest = $HaPi->getProject($project);
+			
+			if (!$objRequest->isSuccess())
+			{
+				continue;
+			}
+			
+			$objProject = $objRequest->data;
+			
+			$start = strtotime($objProject->{'hint-earliest-record-at'});
+			$stop = mktime(0,0,0);
+			
+			$latest = strtotime($objProject->{'hint-latest-record-at'});
+			if ($latest !== false && $stop > $latest)
+			{
+				$stop = $latest;
+			}
+			
+			HarvestTimeRecords::syncProject($HaPi, $active_project, $objProject, $start, $stop);
+		}
+    }
 
 }
 
