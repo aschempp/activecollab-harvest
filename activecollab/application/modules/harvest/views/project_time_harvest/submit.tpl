@@ -26,7 +26,7 @@
 	            <th class="user">{lang}Person{/lang}</th>
 	            <th class="hours">{lang}Hours{/lang}</th>
 	            <th class="desc">{lang}Summary{/lang}</th>
-	            <th class="billable">{lang}Billable{/lang}</th>
+	            <th class="billed">{lang}Status{/lang}</th>
 	            <th class="checkbox"></th>
 	          </tr>
 	        </thead>

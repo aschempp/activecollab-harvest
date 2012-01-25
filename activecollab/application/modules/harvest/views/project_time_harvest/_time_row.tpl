@@ -12,14 +12,15 @@
     {$timerecord->getBody()}
   {/if}
   </td>
-  <td class="billable">
-  {if $timerecord->isBillable()}
-    {lang}Yes{/lang}
+  {if $timerecord->getBillableStatus() == BILLABLE_STATUS_BILLABLE}
+    <td class="billed">{lang}Billable{/lang}</td>
+  {elseif $timerecord->getBillableStatus() == BILLABLE_STATUS_PENDING_PAYMENT}
+    <td class="billed">{lang}Pending{/lang}</td>
+  {elseif $timerecord->getBillableStatus() == BILLABLE_STATUS_BILLED}
+    <td class="billed">{lang}Billed{/lang}</td>
   {else}
-    {lang}No{/lang}
-  {/if}
-  </td>  
-  <td class="checkbox">
+    <td class="billed details">--</td>
+  {/if}  <td class="checkbox">
   {if $can_manage}
     <input type="checkbox" name="time_record_ids[]" value="{$timerecord->getId()}" class="auto slave_checkbox input_checkbox" />
   {/if}
