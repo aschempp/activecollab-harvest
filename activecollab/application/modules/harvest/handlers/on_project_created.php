@@ -69,9 +69,10 @@ function harvest_handle_on_project_created(&$objProject, &$objTemplate)
 		}
 		
 		$objHarvestProject = new Harvest_Project();
-		$objHarvestProject->set('name', $objProject->getName());
-		$objHarvestProject->set('active', true);
-		$objHarvestProject->set('client-id', $intClientID);
+		$objHarvestProject->name = $objProject->getName();
+		$objHarvestProject->notes = strip_tags($objProject->getOverview());
+		$objHarvestProject->active = true;
+		$objHarvestProject->client_id = $intClientID;
 		
 		$objResponse = $HaPi->createProject($objHarvestProject);
 		

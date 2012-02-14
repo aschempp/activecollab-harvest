@@ -71,6 +71,7 @@ function harvest_handle_on_project_updated(&$objProject)
 		$objHarvestProject = new Harvest_Project();
 		$objHarvestProject->id = ProjectConfigOptions::getValue('harvest_project', $objProject);
 		$objHarvestProject->name = $objProject->getName();
+		$objHarvestProject->notes = strip_tags($objProject->getOverview());
 		$objHarvestProject->active = true;
 		$objHarvestProject->client_id = $intClientID;
 		
