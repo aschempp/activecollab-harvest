@@ -22,10 +22,10 @@ function harvest_handle_on_project_created(&$objProject, &$objTemplate)
 	// activeCollab client company
 	$objCompany = $objProject->getCompany();
 	
+	// Do not create a Harvest project if no company is assigned to a project.
 	if (is_null($objCompany))
 	{
-		$objUser =& Authentication::instance()->provider->getUser();
-		$objCompany = $objUser->getCompany();
+		return;
 	}
 	
 	// Harvest clients
