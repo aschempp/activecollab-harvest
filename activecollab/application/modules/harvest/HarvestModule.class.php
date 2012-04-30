@@ -122,10 +122,6 @@ class HarvestModule extends Module
 		$this->addConfigOption('harvest_create_client', SYSTEM_CONFIG_OPTION, false);
 		$this->addConfigOption('harvest_sync_interval', SYSTEM_CONFIG_OPTION, 0);
 
-		// user config options
-		$this->addConfigOption('harvest_user', USER_CONFIG_OPTION, null);
-		$this->addConfigOption('harvest_pass', USER_CONFIG_OPTION, null);
-		
 		// project config options
 		$this->addConfigOption('harvest_project', PROJECT_CONFIG_OPTION, 0);
 		
